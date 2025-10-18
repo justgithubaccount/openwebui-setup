@@ -1,0 +1,108 @@
+
+services:
+  # Open WebUI service
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/backend/data
+    environment:
+      # External API Providers (uncomment the ones you need)
+
+      # OpenAI Configuration
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_API_BASE_URL: ${OPENAI_API_BASE_URL:-https://api.openai.com/v1}
+
+      # Anthropic Claude Configuration
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_API_BASE_URL: ${ANTHROPIC_API_BASE_URL:-https://api.anthropic.com/v1}
+
+      # Google Gemini Configuration
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+
+      # Azure OpenAI Configuration
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
+      AZURE_OPENAI_DEPLOYMENT_NAME: ${AZURE_OPENAI_DEPLOYMENT_NAME}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION}
+
+      # Groq Configuration
+      GROQ_API_KEY: ${GROQ_API_KEY}
+
+      # Mistral AI Configuration
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+
+      # Cohere Configuration
+      COHERE_API_KEY: ${COHERE_API_KEY}
+
+      # Web Search Configuration
+      ENABLE_RAG_WEB_SEARCH: ${ENABLE_RAG_WEB_SEARCH:-false}
+      RAG_WEB_SEARCH_ENGINE: ${RAG_WEB_SEARCH_ENGINE:-duckduckgo}
+      RAG_WEB_SEARCH_RESULT_COUNT: ${RAG_WEB_SEARCH_RESULT_COUNT:-3}
+      SEARXNG_QUERY_URL: ${SEARXNG_QUERY_URL}
+
+      # Authentication
+      WEBUI_AUTH: ${WEBUI_AUTH:-true}
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
+
+      # Email Configuration (for password reset and notifications)
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_USE_TLS: ${SMTP_USE_TLS}
+
+      # Rate Limiting
+      ENABLE_RATE_LIMIT: ${ENABLE_RATE_LIMIT:-false}
+      DEFAULT_USER_ROLE: ${DEFAULT_USER_ROLE:-pending}
+
+      # UI Customization
+      WEBUI_NAME: ${WEBUI_NAME:-Open WebUI}
+      SHOW_ADMIN_DETAILS: ${SHOW_ADMIN_DETAILS:-true}
+      ENABLE_SIGNUP: ${ENABLE_SIGNUP:-true}
+
+      # Memory optimization - disable RAG embedding for external APIs only setup
+      RAG_EMBEDDING_ENGINE: ${RAG_EMBEDDING_ENGINE:-}
+      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-}
+      ENABLE_RAG_LOCAL_WEB_FETCH: ${ENABLE_RAG_LOCAL_WEB_FETCH:-false}
+      
+    networks:
+      - webui-network
+    restart: unless-stopped
+    # For GPU support, uncomment the following:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # Caddy reverse proxy for HTTPS
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN}
+    networks:
+      - webui-network
+    restart: unless-stopped
+    depends_on:
+      - open-webui
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  webui-network:
+    driver: bridge
